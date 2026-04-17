@@ -702,8 +702,9 @@ window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ======================= ENTITY CLASS =======================
 class Entity {
-  constructor(type, x, y, facing = 1) {
+  constructor(type, x, y, facing = 1, isPlayer = false) {
     this.type = type;
+    this.isPlayer = isPlayer;
     this.x = x;
     this.y = y;
     this.vx = 0;
@@ -752,7 +753,7 @@ class Entity {
   }
 
   get attackBox() {
-    const reach = (this.type === 'shinobi' ? 50 : 45) * DRAW_SCALE;
+    const reach = (this.isPlayer ? 50 : 45) * DRAW_SCALE;
     const x = this.facing === 1 ? this.x : this.x - reach;
     return { x, y: this.y - 70 * DRAW_SCALE, w: reach, h: 70 * DRAW_SCALE };
   }
@@ -776,7 +777,7 @@ class Entity {
         this.frame++;
         this.frameTimer = 0;
       }
-      if (this.deadTimer > 120 && this.type !== 'shinobi') this.removed = true;
+      if (this.deadTimer > 120 && !this.isPlayer) this.removed = true;
       return;
     }
 
@@ -785,7 +786,7 @@ class Entity {
     this.y += this.vy;
 
     if (this.y >= GROUND_Y) {
-      if (!this.onGround && this.vy > 3 && this.type === 'shinobi') sfx_land();
+      if (!this.onGround && this.vy > 3 && this.isPlayer) sfx_land();
       this.y = GROUND_Y;
       this.vy = 0;
       this.onGround = true;
@@ -840,8 +841,7 @@ class Entity {
     const damage = this.attackType === 'heavy' ? 20 : (this.attackType === 'kick' ? 12 : 10);
     for (const o of others) {
       if (o === this || o.dead) continue;
-      if (this.type === 'shinobi' && o.type === 'shinobi') continue;
-      if (this.type !== 'shinobi' && o.type !== 'shinobi') continue;
+      if (this.isPlayer === o.isPlayer) continue;
       const hb = o.hitbox;
       if (ab.x < hb.x + hb.w && ab.x + ab.w > hb.x &&
           ab.y < hb.y + hb.h && ab.y + ab.h > hb.y) {
@@ -852,7 +852,7 @@ class Entity {
 
   takeDamage(amount, fromFacing) {
     if (this.dead) return;
-    if (this.shielding && this.type === 'shinobi') {
+    if (this.shielding && this.isPlayer) {
       amount = Math.max(1, Math.floor(amount * 0.2));
     }
     this.hp -= amount;
@@ -862,7 +862,7 @@ class Entity {
       this.hp = 0;
       this.dead = true;
       this.setState('Dead');
-      if (this.type === 'shinobi') sfx_death();
+      if (this.isPlayer) sfx_death();
       else sfx_enemyDie();
     } else {
       this.setState('Hurt');
@@ -874,9 +874,9 @@ class Entity {
     if (this.attackCooldown > 0 || this.dead || this.hurtTimer > 0) return;
     if (!this.onGround) return;
     this.attackType = kind;
-    if (kind === 'light') { this.setState('Attack_1'); if(this.type==='shinobi') sfx_punch(); }
-    else if (kind === 'kick') { this.setState('Attack_2'); if(this.type==='shinobi') sfx_kick(); }
-    else if (kind === 'heavy') { this.setState('Attack_3'); if(this.type==='shinobi') sfx_heavyPunch(); }
+    if (kind === 'light') { this.setState('Attack_1'); if(this.isPlayer) sfx_punch(); }
+    else if (kind === 'kick') { this.setState('Attack_2'); if(this.isPlayer) sfx_kick(); }
+    else if (kind === 'heavy') { this.setState('Attack_3'); if(this.isPlayer) sfx_heavyPunch(); }
     this.attackCooldown = kind === 'heavy' ? 40 : (kind === 'kick' ? 25 : 20);
   }
 
@@ -978,7 +978,7 @@ function spawnWave(n) {
   for (let i = 0; i < count; i++) {
     const xPos = player.x + 400 + i * 220;
     const type = Math.random() < 0.5 ? 'samurai' : 'fighter';
-    const e = new Entity(type, Math.min(xPos, WORLD_WIDTH - 100), GROUND_Y, -1);
+    const e = new Entity(type, Math.min(xPos, WORLD_WIDTH - 100), GROUND_Y, -1, false);
     e.maxHp = e.maxHp + (n - 1) * 15;
     e.hp = e.maxHp;
     enemies.push(e);
@@ -996,7 +996,7 @@ function announceWave(text) {
 
 function startGame() {
   initAudio();
-  player = new Entity(selectedCharType, 200, GROUND_Y, 1);
+  player = new Entity(selectedCharType, 200, GROUND_Y, 1, true);
   score = 0;
   wave = 1;
   camX = 0;
